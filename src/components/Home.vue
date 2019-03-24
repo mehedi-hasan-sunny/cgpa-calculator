@@ -7,8 +7,8 @@
                     <td class="text-xs-center"> {{props.item.gpa}}</td>
                     <td class="text-xs-center"> {{props.item.cgpa}}</td>
                     <td class="justify-center layout px-0">
-                        <v-icon @click="editItem(props.item)" class="pa-2" outline icon small>edit</v-icon>
-                        <v-icon @click="deleteItem(props.item)" icon outline small class="pa-2">delete</v-icon>
+                        <v-icon @click="editItem(props.item)" class="pa-2" icon outline small>edit</v-icon>
+                        <v-icon @click="deleteItem(props.item)" class="pa-2" icon outline small>delete</v-icon>
                     </td>
                 </template>
             </v-data-table>
@@ -38,7 +38,7 @@
                             </v-layout>
                             <v-layout class="justify-center text-xs-center">
                                 <div>
-                                    <v-btn @click.prevent="credit='',gpa=''" class="normal-btn" color="teal accent-3"
+                                    <v-btn @click.prevent="saveList" class="normal-btn" color="teal accent-3"
                                            icon outline>
                                         <v-icon>save</v-icon>
                                     </v-btn>
@@ -46,7 +46,7 @@
                                 </div>
                                 <v-spacer></v-spacer>
                                 <div>
-                                    <v-btn @click.prevent="" class="normal-btn" color="cyan accent-3" icon outline>
+                                    <v-btn @click.prevent="stored" class="normal-btn" color="cyan accent-3" icon outline>
                                         <v-icon>storage</v-icon>
                                     </v-btn>
                                     <div class="custom-btn-label cyan--text text--accent-3">Stored</div>
@@ -61,7 +61,7 @@
                                 </div>
                                 <v-spacer></v-spacer>
                                 <div>
-                                    <v-btn @click.prevent="credit='',gpa=''" class="normal-btn" color="error" icon
+                                    <v-btn @click.prevent="clear" class="normal-btn" color="error" icon
                                            outline>
                                         <v-icon>clear</v-icon>
                                     </v-btn>
@@ -84,7 +84,10 @@
         <v-dialog max-width="500px" v-model="dialog">
             <v-card>
                 <p class="body-2 ma-0 px-3 pt-3 text-xs-center" v-if="dialogIsOpenedFor=='edit'">Edit</p>
-                <p class="body-2 ma-0 px-3 pt-3 text-xs-center" v-if="dialogIsOpenedFor=='delete'">Are you sure?</p>
+                <p class="body-2 ma-0 px-3 pt-3 text-xs-center" v-else-if="dialogIsOpenedFor=='delete'">Are you
+                    sure?</p>
+                <p class="body-2 ma-0 px-3 pt-3 text-xs-center" v-else-if="dialogIsOpenedFor=='save-list'">Save CGPA
+                    List</p>
 
                 <v-card-text>
                     <v-form v-if="dialogIsOpenedFor=='edit'">
@@ -94,19 +97,26 @@
                                               v-model="editInputs.credit"></v-text-field>
                             </v-flex>
                             <v-flex pl-2 xs6>
-                                <v-text-field label="Grade Point(GP)" type="number" v-model="editInputs.gpa"></v-text-field>
+                                <v-text-field label="Grade Point(GP)" type="number"
+                                              v-model="editInputs.gpa"></v-text-field>
                             </v-flex>
                         </v-layout>
                     </v-form>
-                    <p class="text-xs-center" v-else-if="dialogIsOpenedFor=='delete'">Continuing will result in removing the entry!</p>
+                    <v-layout row wrap v-else-if="dialogIsOpenedFor=='save-list'">
+                        <v-flex xs12>
+                            <v-text-field label="List Name" type="text" v-model="saveListName"></v-text-field>
+                        </v-flex>
+                    </v-layout>
+                    <p class="text-xs-center" v-else-if="dialogIsOpenedFor=='delete'">Continuing will result in removing
+                        the selected entry!</p>
                 </v-card-text>
 
                 <v-card-actions class="px-3 pb-3 pt-0">
-                    <v-btn @click="dialog=false" class="normal-btn text-xs-left" color="blue-grey lighten-1" outline>
+                    <v-btn @click="cancel" class="normal-btn text-xs-left" color="blue-grey lighten-1" outline>
                         <v-icon>close</v-icon>
                     </v-btn>
                     <v-spacer></v-spacer>
-                    <v-btn @click="confirmAction()" class="normal-btn" color="primary" outline>
+                    <v-btn @click.prevent="confirmAction()" class="normal-btn" color="primary" outline>
                         <v-icon>check</v-icon>
                     </v-btn>
                 </v-card-actions>
@@ -116,8 +126,11 @@
 </template>
 
 <script>
+    import Storage from '../services/storage';
+
+    const storage = new Storage();
     export default {
-        name: 'HelloWorld',
+        name: 'Home',
         data() {
             return {
                 dialog: false,
@@ -157,7 +170,8 @@
                         width: "1%"
                     },
                 ],
-                editedItem: null
+                editedItem: null,
+                saveListName: '',
             }
         },
         mounted() {
@@ -166,10 +180,53 @@
             document.getElementsByClassName('v-table')[0].children[0].children[0].children[0].style.padding = 10
         },
         methods: {
+            saveCGPAListData() {
+                if (this.saveListName && this.cgpaList.length > 1) {
+                    let previousData = [];
+                    let newData = {
+                        id: null,
+                        name: this.saveListName,
+                        data: this.cgpaList
+                    }
+
+                    storage.get('cgpaList').then((value) => {
+                        if (value != null) {
+                            let data = JSON.parse(value);
+                            console.log(data, 'cgpaList')
+                            previousData = data;
+                            if (data.length > 0) {
+                                previousData = data;
+                                newData.id = previousData[previousData.length - 1].id + 1;
+                            }
+                            //
+                            // else{
+                            //     let index = _.findIndex(previousData, {id: this.monthlyExpense.id});
+                            //
+                            //     previousData.splice(index, 1, this.monthlyExpense);
+                            // }
+                        }
+                        else{
+                            newData.id = 1
+                        }
+                        previousData.push(newData)
+                        this.saveToStorage(previousData);
+                    });
+                }
+            },
+            saveToStorage(data) {
+                storage.set('cgpaList', JSON.stringify(data)).then((value) => {
+                    this.saveListName = null;
+                    this.dialog = false;
+                    this.cgpaList = []
+                    this.calculateTotal()
+                    this.clear()
+                });
+
+            },
             add() {
                 if (this.gpa && this.credit) {
                     this.cgpaList.push({
-                        sl: this.cgpaList.length,
+                        id: this.cgpaList.length + 1,
                         credit: this.credit,
                         gpa: this.gpa,
                         cgpa: (this.credit * this.gpa).toFixed(2)
@@ -185,7 +242,7 @@
                     gpa: 0,
                     cgpa: 0,
                 }
-                if(this.cgpaList.length>0){
+                if (this.cgpaList.length > 0) {
                     for (let i = 0; i < this.cgpaList.length; i++) {
                         this.total.credit += parseFloat(this.cgpaList[i].credit)
                         this.total.gpa += parseFloat(this.cgpaList[i].cgpa)
@@ -193,13 +250,14 @@
                     this.total.cgpa = (this.total.gpa.toFixed(2) / this.total.credit).toFixed(2)
                 }
             },
-            confirmAction(){
-              if(this.dialogIsOpenedFor == 'edit'){
-                  this.updateCGPAList();
-              }
-              else if(this.dialogIsOpenedFor=='delete'){
-                  this.confirmDelete();
-              }
+            confirmAction() {
+                if (this.dialogIsOpenedFor == 'edit') {
+                    this.updateCGPAList();
+                } else if (this.dialogIsOpenedFor == 'delete') {
+                    this.confirmDelete();
+                } else if (this.dialogIsOpenedFor == 'save-list') {
+                    this.saveCGPAListData();
+                }
             },
             editItem(item) {
                 this.dialogIsOpenedFor = 'edit'
@@ -221,14 +279,34 @@
                 this.editedIndex = this.cgpaList.indexOf(item)
 
             },
-            confirmDelete(){
+            confirmDelete() {
                 this.cgpaList.splice(this.editedIndex, 1)
                 this.calculateTotal();
                 this.dialog = false
             },
-            resetData(){
-                this.cgpaList=[];
+            resetData() {
+                this.cgpaList = [];
                 this.calculateTotal()
+            },
+            saveList() {
+                this.dialog = true;
+                this.dialogIsOpenedFor = 'save-list';
+
+            },
+            cancel() {
+                this.dialog = false;
+                if (this.dialogIsOpenedFor == 'save-list') {
+                    this.saveListName = ''
+                }
+            },
+            clear(){
+                this.credit='';
+                this.gpa=''
+            },
+            stored(){
+                storage.get('cgpaList').then((value) => {
+                    console.log(JSON.parse(value), 'get value')
+                });
             }
 
         },
@@ -273,7 +351,8 @@
     table.v-table thead th.column {
         padding: 0 16px !important;
     }
+
     /*.v-text-field__details{*/
-        /*height: 0;*/
+    /*height: 0;*/
     /*}*/
 </style>
