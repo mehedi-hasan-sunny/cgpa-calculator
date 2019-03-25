@@ -25,7 +25,6 @@
                     </div>
                 </v-card>
                 <v-card>
-
                     <v-container>
                         <v-form>
                             <v-layout row wrap>
@@ -116,25 +115,29 @@
                         <v-icon>close</v-icon>
                     </v-btn>
                     <v-spacer></v-spacer>
-                    <v-btn @click.prevent="confirmAction()" class="normal-btn" color="primary" outline>
+                    <v-btn @click.prevent="confirmAction()" class="normal-btn" :color="dialogIsOpenedFor=='delete'? 'error' : 'primary'" outline>
                         <v-icon>check</v-icon>
                     </v-btn>
                 </v-card-actions>
             </v-card>
         </v-dialog>
+        <v-dialog fullscreen hide-overlay lazy transition="dialog-bottom-transition" v-model="storedListDialog">
+            <StoredList :storedListDialog.sync="storedListDialog" v-if="!storedListDialogDestroy" :subheader="headers"></StoredList>
+        </v-dialog>
     </div>
 </template>
 
 <script>
+    import StoredList from './StoredList';
     import Storage from '../services/storage';
-
     const storage = new Storage();
     export default {
         name: 'Home',
+        components: {
+            StoredList
+        },
         data() {
             return {
-                dialog: false,
-                dialogIsOpenedFor: '',
                 credit: '',
                 gpa: '',
                 editInputs: {},
@@ -149,27 +152,31 @@
                         text: 'Credit(s)',
                         align: 'center',
                         sortable: false,
-                        width: "1%"
+                        width: "10px"
                     },
                     {
                         text: 'GP',
                         align: 'center',
                         sortable: false,
-                        width: "1%"
+                        width: "10px"
                     },
                     {
                         text: 'Weighted GP',
                         align: 'center',
                         sortable: false,
-                        width: "1%"
+                        width: "10px"
                     },
                     {
                         text: 'Actions',
                         align: 'center',
                         sortable: false,
-                        width: "1%"
+                        width: "10px"
                     },
                 ],
+                dialog: false,
+                dialogIsOpenedFor: '',
+                storedListDialog:false,
+                storedListDialogDestroy:true,
                 editedItem: null,
                 saveListName: '',
             }
@@ -178,6 +185,16 @@
             let element = document.getElementsByClassName('bottom-fixed')[0];
             document.getElementById('cgpa-table').setAttribute('style', 'max-height: ' + (document.body.scrollHeight - element.offsetHeight - document.getElementsByClassName('v-toolbar')[0].offsetHeight) + 'px')
             document.getElementsByClassName('v-table')[0].children[0].children[0].children[0].style.padding = 10
+        },
+        watch:{
+           storedListDialog(value){
+               if(!value){
+                   let instance = this;
+                   setTimeout(function () {
+                       instance.storedListDialogDestroy = !instance.storedListDialogDestroy
+                   },200)
+               }
+           }
         },
         methods: {
             saveCGPAListData() {
@@ -304,9 +321,9 @@
                 this.gpa=''
             },
             stored(){
-                storage.get('cgpaList').then((value) => {
-                    console.log(JSON.parse(value), 'get value')
-                });
+
+                this.storedListDialog = true;
+                this.storedListDialogDestroy = false;
             }
 
         },

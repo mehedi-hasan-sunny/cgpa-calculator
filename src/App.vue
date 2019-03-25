@@ -8,7 +8,7 @@
     </v-toolbar>
 
     <v-content>
-      <HelloWorld/>
+      <Home/>
     </v-content>
   </v-app>
 </template>
