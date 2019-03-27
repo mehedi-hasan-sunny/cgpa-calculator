@@ -8,37 +8,35 @@
             <v-spacer></v-spacer>
         </v-toolbar>
        <v-container>
-           <v-data-table :headers="headers" :items="storedList" class="elevation-1 border-rad" hide-actions v-if="storedList">
+           <v-data-table :headers="headers" :items="storedList" class="elevation-1 border-rad" hide-actions item-key="name">
                <template v-slot:items="props">
                    <td class="text-xs-center" @click="props.expanded = !props.expanded, subItems = props.item.data, expanded = !expanded"> <v-icon v-if="props.expanded">keyboard_arrow_down</v-icon> <v-icon v-else>keyboard_arrow_right</v-icon></td>
-                   <td class="text-xs-center"> {{props.item.name}}</td>
-                   <td class="text-xs-center"> {{storedListSingleCGPA(props.item.data)}}</td>
+                   <td class="text-xs-center" @click="props.expanded = !props.expanded, subItems = props.item.data, expanded = !expanded"> {{props.item.name}}</td>
+                   <td class="text-xs-center" @click="props.expanded = !props.expanded, subItems = props.item.data, expanded = !expanded"> {{storedListSingleCGPA(props.item.data)}}</td>
                    <!--<td class="text-xs-center"> {{props.item.cgpa}}</td>-->
                    <td class="justify-center layout px-0">
                        <!--<v-icon @click="editItem(props.item)" class="pa-2" icon outline small>edit</v-icon>-->
                        <v-icon @click="deleteItem(props.item)" class="pa-2" icon outline small>delete</v-icon>
                    </td>
                </template>
-               <template slot="expand" >
-                   <v-data-table :headers="subheader" :items="subItems" class="elevation-1" hide-actions >
-                       <template v-slot:items="props">
-                           <td class="text-xs-center"> {{props.item.credit}}</td>
-                           <td class="text-xs-center"> {{props.item.gpa}}</td>
-                           <td class="text-xs-center"> {{props.item.cgpa}}</td>
-                           <td class="justify-center layout px-0">
-                               <v-icon @click="editSubItem(props.item)" class="pa-2" icon outline small>edit</v-icon>
-                               <v-icon @click="deleteSubItem(props.item)" class="pa-2" icon outline small>delete</v-icon>
-                           </td>
-                       </template>
-                   </v-data-table>
+               <template slot="expand">
+                   <GradePointList :headers="subheader" :dataArray="subItems" @editItem="editSubItem" @deleteItem="deleteSubItem"></GradePointList>
                </template>
            </v-data-table>
-           <v-card v-else>
-               <v-card-text>
-                   <p class=" ma-0 pa-3  text-xs-center">No data available</p>
-               </v-card-text>
-           </v-card>
+           <!--<v-card v-else>-->
+               <!--<v-card-text>-->
+                   <!--<p class=" ma-0 pa-3 text-xs-center">No data available</p>-->
+               <!--</v-card-text>-->
+           <!--</v-card>-->
        </v-container>
+        <div class="bottom-fixed"  v-if="storedList.length> 0">
+            <v-container class="text-xs-center">
+                <v-btn @click.prevent="generateCGPAFromList()"  color="indigo" outline>
+                    Generate CGPA
+                </v-btn>
+            </v-container>
+        </div>
+
         <v-dialog max-width="500px" v-model="dialog">
             <v-card>
                 <v-card-text>
@@ -60,12 +58,16 @@
 </template>
 
 <script>
+    import GradePointList from './GradePointList';
     import Storage from '../services/storage';
 
     const storage = new Storage();
     export default {
         name: "StoredList",
         props:['subheader'],
+        components:{
+          GradePointList
+        },
         data() {
             return {
                 storedList: [],
@@ -110,8 +112,8 @@
             storedListSingleCGPA(data) {
                 let credit = 0, gpa = 0
                 for (let i = 0; i < data.length; i++) {
-                    credit += parseFloat(data[i].credit)
-                    gpa += parseFloat(data[i].cgpa)
+                    credit += parseFloat(data[i].credits)
+                    gpa += parseFloat(data[i].weightedGP)
                 }
                 let cgpa = ((gpa.toFixed(2) / credit).toFixed(2))
                 return cgpa;
@@ -128,11 +130,12 @@
             },
             confirmDelete() {
                 this.storedList.splice(this.selectedIndex, 1)
-                this.saveToStorage();
+                this.saveToStorage(this.storedList);
             },
-            saveToStorage() {
-                storage.set('cgpaList', JSON.stringify(this.storedList)).then((value) => {
+            saveToStorage(data) {
+                storage.set('cgpaList', JSON.stringify(data)).then((value) => {
                     this.dialog = false;
+                    this.selectedIndex = null;
                 });
 
             },
@@ -141,9 +144,30 @@
             },
             editSubItem(item){
 
+                this.dialog = true
+                this.selectedIndex = this.storedList.indexOf(item)
+                this.editInputs = Object.assign({}, item)
             },
             deleteSubItem(item){
 
+            },
+            generateCGPAFromList(){
+                let total = {
+                    credits: 0,
+                    weightedGP: 0,
+                    cgpa: 0,
+                }
+
+                this.storedList.forEach(function (item) {
+                    item.data.forEach(function(element){
+                        total.credits +=parseFloat(element.credits);
+                        total.weightedGP += parseFloat(element.weightedGP);
+                    })
+                });
+                total.cgpa = (total.weightedGP / total.credits).toFixed(2)
+
+                this.$emit('generateCGPA',total)
+                this.$emit('update:storedListDialog',false)
             }
         },
 

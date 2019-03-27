@@ -1,25 +1,16 @@
 <template>
     <div>
         <v-container id="cgpa-table-container">
-            <v-data-table :headers="headers" :items="cgpaList" class="elevation-1" hide-actions id="cgpa-table">
-                <template v-slot:items="props">
-                    <td class="text-xs-center"> {{props.item.credit}}</td>
-                    <td class="text-xs-center"> {{props.item.gpa}}</td>
-                    <td class="text-xs-center"> {{props.item.cgpa}}</td>
-                    <td class="justify-center layout px-0">
-                        <v-icon @click="editItem(props.item)" class="pa-2" icon outline small>edit</v-icon>
-                        <v-icon @click="deleteItem(props.item)" class="pa-2" icon outline small>delete</v-icon>
-                    </td>
-                </template>
-            </v-data-table>
+            <GradePointList :dataArray="cgpaList" :headers="headers" @deleteGradePoint="deleteItem" @editGradePoint="editItem"
+                            id="cgpa-table"></GradePointList>
         </v-container>
         <div class="bottom-fixed">
             <v-container>
                 <v-card class="my-3 ">
                     <div class="text-xs-center">
                         <v-layout align-center justify-space-between pt-2 row wrap>
-                            <v-flex class="caption">Total Credit(s) : {{ total.credit }}</v-flex>
-                            <v-flex class="caption">Total Weighted GP : {{total.gpa}}</v-flex>
+                            <v-flex class="caption">Total Credit(s) : {{ total.credits }}</v-flex>
+                            <v-flex class="caption">Total Weighted GP : {{total.weightedGP}}</v-flex>
                         </v-layout>
                         <p class="display-2 pa-2 mb-0">CGPA: {{total.cgpa}}</p>
                     </div>
@@ -29,10 +20,12 @@
                         <v-form>
                             <v-layout row wrap>
                                 <v-flex pr-2 xs6>
-                                    <v-text-field label="Credit(s)" type="number" v-model="credit"></v-text-field>
+                                    <v-text-field :autofocus=true label="Credit(s)" type="number"
+                                                  v-model="credits"></v-text-field>
                                 </v-flex>
                                 <v-flex pl-2 xs6>
-                                    <v-text-field label="Grade Point(GP)" type="number" v-model="gpa"></v-text-field>
+                                    <v-text-field label="Grade Point(GP)" type="number"
+                                                  v-model="gradePoint"></v-text-field>
                                 </v-flex>
                             </v-layout>
                             <v-layout class="justify-center text-xs-center">
@@ -45,14 +38,15 @@
                                 </div>
                                 <v-spacer></v-spacer>
                                 <div>
-                                    <v-btn @click.prevent="stored" class="normal-btn" color="cyan accent-3" icon outline>
+                                    <v-btn @click.prevent="stored" class="normal-btn" color="cyan accent-3" icon
+                                           outline>
                                         <v-icon>storage</v-icon>
                                     </v-btn>
                                     <div class="custom-btn-label cyan--text text--accent-3">Stored</div>
                                 </div>
                                 <v-spacer></v-spacer>
                                 <div>
-                                    <v-btn @click.prevent="resetData()" class="normal-btn" color="blue-grey lighten-1"
+                                    <v-btn @click.prevent="resetData" class="normal-btn" color="blue-grey lighten-1"
                                            icon outline>
                                         <v-icon>cached</v-icon>
                                     </v-btn>
@@ -60,8 +54,7 @@
                                 </div>
                                 <v-spacer></v-spacer>
                                 <div>
-                                    <v-btn @click.prevent="clear" class="normal-btn" color="error" icon
-                                           outline>
+                                    <v-btn @click.prevent="clear" class="normal-btn" color="error" icon outline>
                                         <v-icon>clear</v-icon>
                                     </v-btn>
                                     <div class="custom-btn-label error--text">Clear</div>
@@ -85,23 +78,22 @@
                 <p class="body-2 ma-0 px-3 pt-3 text-xs-center" v-if="dialogIsOpenedFor=='edit'">Edit</p>
                 <p class="body-2 ma-0 px-3 pt-3 text-xs-center" v-else-if="dialogIsOpenedFor=='delete'">Are you
                     sure?</p>
-                <p class="body-2 ma-0 px-3 pt-3 text-xs-center" v-else-if="dialogIsOpenedFor=='save-list'">Save CGPA
-                    List</p>
+                <p class="body-2 ma-0 px-3 pt-3 text-xs-center" v-else-if="dialogIsOpenedFor=='save-list'">Save CGPA List</p>
 
                 <v-card-text>
                     <v-form v-if="dialogIsOpenedFor=='edit'">
                         <v-layout row wrap>
                             <v-flex pr-2 xs6>
-                                <v-text-field :autofocus='true' label="Credit(s)" type="number"
-                                              v-model="editInputs.credit"></v-text-field>
+                                <v-text-field :autofocus=true label="Credit(s)" type="number"
+                                              v-model="editInputs.credits"></v-text-field>
                             </v-flex>
                             <v-flex pl-2 xs6>
                                 <v-text-field label="Grade Point(GP)" type="number"
-                                              v-model="editInputs.gpa"></v-text-field>
+                                              v-model="editInputs.gradePoint"></v-text-field>
                             </v-flex>
                         </v-layout>
                     </v-form>
-                    <v-layout row wrap v-else-if="dialogIsOpenedFor=='save-list'">
+                    <v-layout row v-else-if="dialogIsOpenedFor=='save-list'" wrap>
                         <v-flex xs12>
                             <v-text-field label="List Name" type="text" v-model="saveListName"></v-text-field>
                         </v-flex>
@@ -115,36 +107,41 @@
                         <v-icon>close</v-icon>
                     </v-btn>
                     <v-spacer></v-spacer>
-                    <v-btn @click.prevent="confirmAction()" class="normal-btn" :color="dialogIsOpenedFor=='delete'? 'error' : 'primary'" outline>
+                    <v-btn :color="dialogIsOpenedFor=='delete'? 'error' : 'primary'" @click.prevent="confirmAction()"
+                           class="normal-btn" outline>
                         <v-icon>check</v-icon>
                     </v-btn>
                 </v-card-actions>
             </v-card>
         </v-dialog>
         <v-dialog fullscreen hide-overlay lazy transition="dialog-bottom-transition" v-model="storedListDialog">
-            <StoredList :storedListDialog.sync="storedListDialog" v-if="!storedListDialogDestroy" :subheader="headers"></StoredList>
+            <StoredList :storedListDialog.sync="storedListDialog" :subheader="headers" @generateCGPA="generateCGPAFromList"
+                        v-if="!storedListDialogDestroy"></StoredList>
         </v-dialog>
     </div>
 </template>
 
 <script>
+    import GradePointList from './GradePointList';
     import StoredList from './StoredList';
     import Storage from '../services/storage';
+
     const storage = new Storage();
     export default {
         name: 'Home',
         components: {
-            StoredList
+            StoredList,
+            GradePointList
         },
         data() {
             return {
-                credit: '',
-                gpa: '',
+                credits: '',
+                gradePoint: '',
                 editInputs: {},
                 cgpaList: [],
                 total: {
-                    credit: 0,
-                    gpa: 0,
+                    credits: 0,
+                    weightedGP: 0,
                     cgpa: 0,
                 },
                 headers: [
@@ -175,28 +172,44 @@
                 ],
                 dialog: false,
                 dialogIsOpenedFor: '',
-                storedListDialog:false,
-                storedListDialogDestroy:true,
+                storedListDialog: false,
+                storedListDialogDestroy: true,
+                dialogDestroy: true,
                 editedItem: null,
                 saveListName: '',
             }
         },
         mounted() {
             let element = document.getElementsByClassName('bottom-fixed')[0];
-            document.getElementById('cgpa-table').setAttribute('style', 'max-height: ' + (document.body.scrollHeight - element.offsetHeight - document.getElementsByClassName('v-toolbar')[0].offsetHeight) + 'px')
-            document.getElementsByClassName('v-table')[0].children[0].children[0].children[0].style.padding = 10
+            let bodyHeight = document.body.scrollHeight;
+            let toolbarHeight = document.getElementsByClassName('v-toolbar')[0].offsetHeight;
+            document.getElementById('cgpa-table').setAttribute('style', 'max-height: ' + (bodyHeight - element.offsetHeight - toolbarHeight) + 'px')
+            // document.getElementsByClassName('v-table')[0].children[0].children[0].children[0].style.padding = 10
         },
-        watch:{
-           storedListDialog(value){
-               if(!value){
-                   let instance = this;
-                   setTimeout(function () {
-                       instance.storedListDialogDestroy = !instance.storedListDialogDestroy
-                   },200)
-               }
-           }
+        watch: {
+            storedListDialog(value) {
+                if (!value) {
+                    let instance = this;
+                    setTimeout(function () {
+                        instance.storedListDialogDestroy = !instance.storedListDialogDestroy
+                    }, 200)
+                }
+            },
+            cgpaList() {
+                this.calculateTotal();
+            },
+            dialog(value){
+                if(!value) this.dialogIsOpenedFor= null
+            }
         },
         methods: {
+            generateCGPAFromList(value) {
+                this.resetData();
+                let instance = this;
+                this.$nextTick(function () {
+                    instance.total = value;
+                })
+            },
             saveCGPAListData() {
                 if (this.saveListName && this.cgpaList.length > 1) {
                     let previousData = [];
@@ -221,8 +234,7 @@
                             //
                             //     previousData.splice(index, 1, this.monthlyExpense);
                             // }
-                        }
-                        else{
+                        } else {
                             newData.id = 1
                         }
                         previousData.push(newData)
@@ -234,37 +246,37 @@
                 storage.set('cgpaList', JSON.stringify(data)).then((value) => {
                     this.saveListName = null;
                     this.dialog = false;
-                    this.cgpaList = []
-                    this.calculateTotal()
+                    this.resetData();
                     this.clear()
                 });
 
             },
             add() {
-                if (this.gpa && this.credit) {
-                    this.cgpaList.push({
-                        id: this.cgpaList.length + 1,
-                        credit: this.credit,
-                        gpa: this.gpa,
-                        cgpa: (this.credit * this.gpa).toFixed(2)
-                    });
-                    this.gpa = ''
-                    // this.credit = ''
-                    this.calculateTotal();
+                if (this.credits && this.gradePoint) {
+                    if (this.credits > 0 && (this.gradePoint >= 0 && this.gradePoint <= 4)) {
+                        this.cgpaList.push({
+                            id: this.cgpaList.length + 1,
+                            credits: this.credits,
+                            gradePoint: this.gradePoint,
+                            weightedGP: (this.credits * this.gradePoint).toFixed(2)
+                        });
+                        this.gradePoint = ''
+                    }
                 }
             },
             calculateTotal() {
                 this.total = {
-                    credit: 0,
-                    gpa: 0,
+                    credits: 0,
+                    weightedGP: 0,
                     cgpa: 0,
                 }
                 if (this.cgpaList.length > 0) {
                     for (let i = 0; i < this.cgpaList.length; i++) {
-                        this.total.credit += parseFloat(this.cgpaList[i].credit)
-                        this.total.gpa += parseFloat(this.cgpaList[i].cgpa)
+                        this.total.credits += parseFloat(this.cgpaList[i].credits)
+                        this.total.weightedGP += parseFloat(this.cgpaList[i].weightedGP)
                     }
-                    this.total.cgpa = (this.total.gpa.toFixed(2) / this.total.credit).toFixed(2)
+
+                    this.total.cgpa = (this.total.weightedGP.toFixed(2) / this.total.credits).toFixed(2)
                 }
             },
             confirmAction() {
@@ -277,15 +289,15 @@
                 }
             },
             editItem(item) {
+
                 this.dialogIsOpenedFor = 'edit'
                 this.dialog = true
                 this.editedIndex = this.cgpaList.indexOf(item)
                 this.editInputs = Object.assign({}, item)
             },
             updateCGPAList() {
-                this.editInputs.cgpa = (this.editInputs.credit * this.editInputs.gpa).toFixed(2)
+                this.editInputs.weightedGP = (this.editInputs.credits * this.editInputs.gpa).toFixed(2)
                 Object.assign(this.cgpaList[this.editedIndex], this.editInputs)
-                this.calculateTotal();
                 this.dialog = false;
                 this.editedIndex = null;
 
@@ -298,12 +310,10 @@
             },
             confirmDelete() {
                 this.cgpaList.splice(this.editedIndex, 1)
-                this.calculateTotal();
                 this.dialog = false
             },
             resetData() {
                 this.cgpaList = [];
-                this.calculateTotal()
             },
             saveList() {
                 this.dialog = true;
@@ -316,18 +326,17 @@
                     this.saveListName = ''
                 }
             },
-            clear(){
-                this.credit='';
-                this.gpa=''
+            clear() {
+                this.credits = '';
+                this.gradePoint = ''
             },
-            stored(){
+            stored() {
 
                 this.storedListDialog = true;
                 this.storedListDialogDestroy = false;
             }
 
-        },
-
+        }
     }
 </script>
 
