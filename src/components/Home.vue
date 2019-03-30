@@ -1,7 +1,8 @@
 <template>
     <div>
         <v-container id="cgpa-table-container">
-            <GradePointList :dataArray="cgpaList" :headers="headers" @deleteGradePoint="deleteItem" @editGradePoint="editItem"
+            <GradePointList :dataArray="cgpaList" :headers="headers" @deleteGradePoint="deleteItem"
+                            @editGradePoint="editItem"
                             id="cgpa-table"></GradePointList>
         </v-container>
         <div class="bottom-fixed">
@@ -20,12 +21,12 @@
                         <v-form>
                             <v-layout row wrap>
                                 <v-flex pr-2 xs6>
-                                    <v-text-field :autofocus=true label="Credit(s)" type="number"
-                                                  v-model="credits"></v-text-field>
+                                    <v-text-field :rules="rules.credits" id='credits' label="Credit(s)" required
+                                                  type="number" v-model="credits"></v-text-field>
                                 </v-flex>
                                 <v-flex pl-2 xs6>
-                                    <v-text-field label="Grade Point(GP)" type="number"
-                                                  v-model="gradePoint"></v-text-field>
+                                    <v-text-field :rules="rules.gradePoint" label="Grade Point(GP)" required
+                                                  type="number" v-model="gradePoint"></v-text-field>
                                 </v-flex>
                             </v-layout>
                             <v-layout class="justify-center text-xs-center">
@@ -78,24 +79,26 @@
                 <p class="body-2 ma-0 px-3 pt-3 text-xs-center" v-if="dialogIsOpenedFor=='edit'">Edit</p>
                 <p class="body-2 ma-0 px-3 pt-3 text-xs-center" v-else-if="dialogIsOpenedFor=='delete'">Are you
                     sure?</p>
-                <p class="body-2 ma-0 px-3 pt-3 text-xs-center" v-else-if="dialogIsOpenedFor=='save-list'">Save CGPA List</p>
+                <p class="body-2 ma-0 px-3 pt-3 text-xs-center" v-else-if="dialogIsOpenedFor=='save-list'">Save CGPA
+                    List</p>
 
                 <v-card-text>
                     <v-form v-if="dialogIsOpenedFor=='edit'">
                         <v-layout row wrap>
                             <v-flex pr-2 xs6>
-                                <v-text-field :autofocus=true label="Credit(s)" type="number"
+                                <v-text-field :rules="rules.credits" label="Credit(s)" type="number"
                                               v-model="editInputs.credits"></v-text-field>
                             </v-flex>
                             <v-flex pl-2 xs6>
-                                <v-text-field label="Grade Point(GP)" type="number"
+                                <v-text-field :rules="rules.gradePoint" label="Grade Point(GP)" type="number"
                                               v-model="editInputs.gradePoint"></v-text-field>
                             </v-flex>
                         </v-layout>
                     </v-form>
                     <v-layout row v-else-if="dialogIsOpenedFor=='save-list'" wrap>
                         <v-flex xs12>
-                            <v-text-field label="List Name" type="text" v-model="saveListName"></v-text-field>
+                            <v-text-field :autofocus=true :rules="rules.listName" label="List Name" type="text"
+                                          v-model="saveListName"></v-text-field>
                         </v-flex>
                     </v-layout>
                     <p class="text-xs-center" v-else-if="dialogIsOpenedFor=='delete'">Continuing will result in removing
@@ -115,7 +118,8 @@
             </v-card>
         </v-dialog>
         <v-dialog fullscreen hide-overlay lazy transition="dialog-bottom-transition" v-model="storedListDialog">
-            <StoredList :storedListDialog.sync="storedListDialog" :subheader="headers" @generateCGPA="generateCGPAFromList"
+            <StoredList :storedListDialog.sync="storedListDialog" :subheader="headers"
+                        @generateCGPA="generateCGPAFromList"
                         v-if="!storedListDialogDestroy"></StoredList>
         </v-dialog>
     </div>
@@ -143,6 +147,43 @@
                     credits: 0,
                     weightedGP: 0,
                     cgpa: 0,
+                },
+                rules: {
+                    credits: [
+                        val => {
+                            if (val == '') {
+                                return 'This filed is required';
+                            } else if (val <= 0) {
+                                return 'Cannot be less or equal to 0'
+                            } else {
+                                return true
+                            }
+                        }
+                    ],
+                    gradePoint: [
+                        val => {
+                            if (val == '') {
+                                return 'This filed is required';
+                            } else if (val < 0 || val > 4) {
+                                return 'Must be within 0 to 4'
+                            } else {
+                                return true
+                            }
+                        }
+                    ],
+                    listName: [
+                        val => {
+                            if (val == '') {
+                                return 'This field is required'
+                            } else if (this.cgpaList.length == 0) {
+                                return 'No data to save! Please insert new data to continue'
+                            } else {
+                                return true
+                            }
+                        }
+                    ],
+                    animal: [val => (val || '').length > 0 || 'This field is required'],
+                    name: [val => (val > 0) || 'Cannot be less or equal to 0']
                 },
                 headers: [
                     {
@@ -184,7 +225,11 @@
             let bodyHeight = document.body.scrollHeight;
             let toolbarHeight = document.getElementsByClassName('v-toolbar')[0].offsetHeight;
             document.getElementById('cgpa-table').setAttribute('style', 'max-height: ' + (bodyHeight - element.offsetHeight - toolbarHeight) + 'px')
-            // document.getElementsByClassName('v-table')[0].children[0].children[0].children[0].style.padding = 10
+
+            this.$nextTick(function () {
+                document.getElementById('credits').focus()
+            })
+
         },
         watch: {
             storedListDialog(value) {
@@ -198,8 +243,8 @@
             cgpaList() {
                 this.calculateTotal();
             },
-            dialog(value){
-                if(!value) this.dialogIsOpenedFor= null
+            dialog(value) {
+                if (!value) this.dialogIsOpenedFor = null
             }
         },
         methods: {
@@ -211,7 +256,7 @@
                 })
             },
             saveCGPAListData() {
-                if (this.saveListName && this.cgpaList.length > 1) {
+                if (this.saveListName && this.cgpaList.length > 0) {
                     let previousData = [];
                     let newData = {
                         id: null,
